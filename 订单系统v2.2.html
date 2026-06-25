@@ -1,0 +1,1478 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>订单数据整理提取工具 V10</title>
+  <style>
+    :root {
+      --bg: #f6f7fb;
+      --card: #ffffff;
+      --text: #172033;
+      --muted: #667085;
+      --line: #e5e7eb;
+      --primary: #2563eb;
+      --primary-dark: #1d4ed8;
+      --soft: #eff6ff;
+      --success: #059669;
+      --success-dark: #047857;
+      --success-soft: #ecfdf5;
+      --danger: #dc2626;
+      --danger-dark: #b91c1c;
+      --danger-soft: #fef2f2;
+      --warning: #d97706;
+      --warning-soft: #fffbeb;
+      --urgent-bg: #fff1f2;
+      --urgent-bg-hover: #ffe4e6;
+      --urgent-text: #9f1239;
+      --delivered-bg: #ecfdf5;
+      --delivered-text: #065f46;
+      --shadow: 0 12px 34px rgba(15, 23, 42, 0.08);
+      --radius: 18px;
+      --navw: 220px;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", Arial, sans-serif;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='190' viewBox='0 0 320 190'%3E%3Cg transform='translate(160 95) rotate(-28)'%3E%3Ctext x='0' y='0' text-anchor='middle' dominant-baseline='middle' font-size='30' font-family='Microsoft YaHei, Arial, sans-serif' font-weight='700' fill='rgba(37,99,235,0.10)'%3E%E6%B2%99%E5%9C%A3%E8%BD%A9%E4%B8%93%E7%94%A8%3C/text%3E%3C/g%3E%3C/svg%3E"), linear-gradient(180deg, #edf4ff 0%, var(--bg) 34%, var(--bg) 100%);
+      background-repeat: repeat, no-repeat;
+      background-size: 320px 190px, cover;
+      background-attachment: fixed, fixed;
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    .side-nav {
+      position: fixed;
+      top: 50%;
+      left: 18px;
+      transform: translateY(-50%);
+      width: var(--navw);
+      max-height: min(76vh, 680px);
+      overflow: auto;
+      padding: 14px;
+      background: rgba(255,255,255,.72);
+      border: 1px solid rgba(229,231,235,.95);
+      border-radius: 20px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(16px);
+      z-index: 60;
+    }
+    .side-nav h3 { margin: 0 0 10px; font-size: 15px; }
+    .side-nav .nav-count { color: var(--muted); font-size: 12px; margin-bottom: 8px; }
+    .nav-link {
+      display: block;
+      width: 100%;
+      text-align: left;
+      border: 1px solid transparent;
+      background: transparent;
+      color: #344054;
+      padding: 8px 9px;
+      border-radius: 12px;
+      font-size: 13px;
+      font-weight: 800;
+      line-height: 1.35;
+      margin-bottom: 5px;
+      cursor: pointer;
+    }
+    .nav-link:hover { background: #eff6ff; color: var(--primary-dark); border-color: #dbeafe; }
+    .nav-link.urgent { color: var(--danger); }
+    .nav-link.delivered { color: var(--success-dark); }
+
+    .wrap { width: min(1160px, calc(100% - 320px)); margin: 0 auto; padding: 32px 0 48px; }
+    .hero { display: flex; justify-content: space-between; gap: 20px; align-items: flex-start; margin-bottom: 22px; }
+    h1 { margin: 0 0 10px; font-size: clamp(26px, 4vw, 42px); letter-spacing: -0.04em; }
+    .version { font-size: 16px; color: var(--primary); vertical-align: middle; }
+    .sub { margin: 0; color: var(--muted); line-height: 1.75; max-width: 920px; font-size: 15px; }
+    .badge { flex: 0 0 auto; background: var(--card); border: 1px solid var(--line); box-shadow: var(--shadow); border-radius: 999px; padding: 10px 14px; color: var(--primary); font-weight: 900; font-size: 14px; white-space: nowrap; }
+    .card { background: rgba(255,255,255,.95); border: 1px solid var(--line); box-shadow: var(--shadow); border-radius: var(--radius); overflow: hidden; margin-bottom: 18px; }
+    .card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 20px; border-bottom: 1px solid var(--line); }
+    .card-head h2 { margin: 0; font-size: 18px; }
+    .hint { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.6; }
+    .body { padding: 18px 20px 20px; }
+
+    textarea { width: 100%; min-height: 220px; resize: vertical; border: 1px solid var(--line); border-radius: 14px; padding: 16px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; font-size: 14px; line-height: 1.65; outline: none; background: #fbfdff; color: var(--text); }
+    textarea:focus, input[type="search"]:focus, input[type="text"]:focus, input[type="date"]:focus, select:focus { border-color: rgba(37,99,235,.55); box-shadow: 0 0 0 4px rgba(37,99,235,.10); }
+
+    .upload-row, .btn-row, .toolbar-row, .filter-row, .top-actions, .sticky-grid, .school-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    .upload-row { margin-bottom: 12px; padding: 14px; border: 1px dashed #b7c7e8; background: #f8fbff; border-radius: 14px; }
+    input[type="file"] { max-width: 100%; color: var(--muted); }
+    .btn-row { margin-top: 12px; }
+
+    button { border: 0; border-radius: 12px; padding: 10px 14px; font-size: 14px; font-weight: 850; cursor: pointer; transition: transform .15s ease, background .15s ease, border-color .15s ease, opacity .15s ease; user-select: none; }
+    button:active { transform: translateY(1px); }
+    button:disabled { opacity: .55; cursor: not-allowed; }
+    .primary { background: var(--primary); color: white; }
+    .primary:hover { background: var(--primary-dark); }
+    .secondary { background: #f3f4f6; color: #111827; border: 1px solid var(--line); }
+    .secondary:hover { background: #eaeef5; }
+    .success { background: var(--success); color: white; }
+    .success:hover { background: var(--success-dark); }
+    .danger { background: var(--danger-soft); color: var(--danger); border: 1px solid #fecaca; }
+    .danger:hover { background: #fee2e2; color: var(--danger-dark); }
+    .urgent-action { background: var(--danger); color: #fff; box-shadow: 0 6px 16px rgba(220,38,38,.18); }
+    .urgent-action:hover { background: var(--danger-dark); }
+    .deliver-action { background: var(--success); color: #fff; box-shadow: 0 6px 16px rgba(5,150,105,.18); }
+    .deliver-action:hover { background: var(--success-dark); }
+    .mini { padding: 8px 10px; font-size: 12px; border-radius: 10px; }
+
+    input[type="search"], input[type="text"], input[type="date"] { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; outline: none; font-size: 14px; background: rgba(255,255,255,.96); }
+    select { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; outline: none; font-size: 14px; background: rgba(255,255,255,.96); color: #111827; }
+
+    .sticky-toolbar {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      margin-bottom: 18px;
+      background: rgba(255, 255, 255, .70);
+      border: 1px solid rgba(229, 231, 235, .92);
+      border-radius: 20px;
+      box-shadow: 0 14px 40px rgba(15,23,42,.12);
+      backdrop-filter: blur(18px);
+      padding: 13px 14px;
+      transition: max-width .2s ease, padding .2s ease, border-radius .2s ease, background .2s ease;
+    }
+    .sticky-title { font-size: 13px; color: #374151; font-weight: 950; margin: 0 0 9px; display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .toolbar-title-right { display: inline-flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+    .sticky-toolbar.collapsed {
+      width: fit-content;
+      max-width: min(92vw, 260px);
+      margin-left: auto;
+      padding: 8px 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.82);
+    }
+    .sticky-toolbar.collapsed .sticky-title { margin: 0; white-space: nowrap; }
+    .sticky-toolbar.collapsed .toolbar-help,
+    .sticky-toolbar.collapsed .sticky-grid,
+    .sticky-toolbar.collapsed .top-actions,
+    .sticky-toolbar.collapsed details.columns { display: none; }
+    .sticky-grid { justify-content: space-between; align-items: stretch; }
+    .toolbar-row { flex: 1 1 560px; }
+    .toolbar-row input[type="search"] { flex: 1 1 240px; min-width: 200px; }
+    .filter-row { flex: 1 1 420px; justify-content: flex-end; }
+    #searchInput { min-width: 230px; flex: 1 1 260px; }
+    .top-actions { width: 100%; padding-top: 10px; border-top: 1px solid rgba(229,231,235,.86); margin-top: 10px; }
+
+    details.columns { padding: 12px 14px; border-top: 1px solid rgba(229,231,235,.86); margin-top: 10px; }
+    details.columns summary { cursor: pointer; color: var(--muted); font-weight: 850; font-size: 13px; }
+    .column-list { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+    .column-list label { display: inline-flex; align-items: center; gap: 5px; padding: 7px 10px; border: 1px solid var(--line); border-radius: 999px; background: rgba(249,250,251,.92); font-size: 13px; color: #374151; }
+
+    .stats { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+    .stat { background: var(--soft); border: 1px solid #dbeafe; color: #1e40af; padding: 10px 12px; border-radius: 12px; font-size: 13px; font-weight: 850; }
+    .stat.urgent { background: var(--danger-soft); border-color: #fecaca; color: var(--danger); }
+    .stat.delivered { background: var(--success-soft); border-color: #bbf7d0; color: var(--success-dark); }
+
+    .school-groups { display: grid; grid-template-columns: 1fr; gap: 16px; }
+    .school-card { border: 1px solid var(--line); border-radius: 16px; overflow: hidden; background: rgba(255,255,255,.98); box-shadow: 0 8px 22px rgba(15,23,42,.05); scroll-margin-top: 132px; }
+    .school-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; padding: 15px 16px; border-bottom: 1px solid var(--line); background: #f8fbff; }
+    .school-title { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; font-weight: 900; font-size: 16px; }
+    .school-title .name { color: #111827; }
+    .school-meta { display: flex; gap: 8px; flex-wrap: wrap; color: var(--muted); font-size: 12px; margin-top: 6px; }
+    .school-actions { justify-content: flex-end; }
+    .school-report { padding: 13px 16px; background: #fff; border-bottom: 1px solid var(--line); }
+    .report-sentence { margin: 0 0 10px; font-size: 15px; font-weight: 900; line-height: 1.65; color: #111827; }
+    .report-sentence .urgent-text { color: var(--danger); }
+    .report-chips { display: flex; gap: 8px; flex-wrap: wrap; }
+    .report-chip { border-radius: 999px; padding: 6px 10px; background: #f3f4f6; color: #374151; font-size: 12px; font-weight: 850; }
+    .report-chip.urgent { background: var(--danger); color: #fff; }
+    .report-chip.delivered { background: var(--success); color: #fff; }
+
+    .table-wrap { overflow: auto; }
+    table { width: 100%; border-collapse: collapse; min-width: 1120px; background: white; }
+    th, td { border-bottom: 1px solid var(--line); padding: 10px 11px; text-align: left; vertical-align: middle; font-size: 13px; white-space: nowrap; }
+    th { background: #f9fafb; color: #374151; font-size: 13px; position: sticky; top: 0; z-index: 1; }
+    tr:hover td { background: #fbfdff; }
+    tr.urgent-row td { background: var(--urgent-bg) !important; color: var(--urgent-text); font-weight: 750; }
+    tr.urgent-row:hover td { background: var(--urgent-bg-hover) !important; }
+    tr.delivered-row td { background: var(--delivered-bg) !important; color: var(--delivered-text); }
+    tr.delivered-row.urgent-row td { background: #fff1f2 !important; color: var(--urgent-text); }
+    tr.delivered-row td:nth-child(n+3):nth-child(-n+9) { opacity: .62; }
+
+    .code { display: inline-flex; align-items: center; justify-content: center; min-width: 70px; padding: 6px 10px; border-radius: 999px; background: #111827; color: white; font-weight: 900; letter-spacing: .06em; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .tag { display: inline-flex; align-items: center; padding: 5px 8px; border-radius: 999px; font-size: 12px; font-weight: 850; background: #f3f4f6; color: #374151; }
+    .tag.warn { background: #fff7ed; color: var(--warning); }
+    .tag.danger { background: var(--danger-soft); color: var(--danger); }
+    .urgent-badge { display: inline-flex; align-items: center; padding: 5px 9px; border-radius: 999px; font-size: 12px; font-weight: 950; background: var(--danger); color: #fff; box-shadow: 0 2px 8px rgba(220,38,38,.18); }
+    .normal-badge { display: inline-flex; align-items: center; padding: 5px 9px; border-radius: 999px; font-size: 12px; font-weight: 850; background: #f3f4f6; color: #374151; }
+    .delivered-badge { display: inline-flex; align-items: center; padding: 5px 9px; border-radius: 999px; font-size: 12px; font-weight: 950; background: var(--success); color: #fff; }
+    .undelivered-badge { display: inline-flex; align-items: center; padding: 5px 9px; border-radius: 999px; font-size: 12px; font-weight: 950; background: #f59e0b; color: #111827; }
+    .deliver-toggle { min-width: 78px; padding: 8px 10px; }
+    .delivered-btn { background: var(--success); color: #fff; border: 1px solid var(--success-dark); }
+    .undelivered-btn { background: #fffbeb; color: #92400e; border: 1px solid #fde68a; }
+
+    .empty { padding: 34px 20px; text-align: center; color: var(--muted); background: white; border-radius: 14px; }
+    .toast { position: fixed; right: 18px; bottom: 18px; max-width: min(460px, calc(100% - 36px)); background: #111827; color: white; padding: 13px 15px; border-radius: 14px; box-shadow: var(--shadow); opacity: 0; transform: translateY(10px); pointer-events: none; transition: opacity .2s ease, transform .2s ease; font-size: 14px; line-height: 1.5; z-index: 100; }
+    .toast.show { opacity: 1; transform: translateY(0); }
+    .small-note { margin-top: 10px; color: var(--muted); font-size: 12px; line-height: 1.7; }
+    .history-panel { display: none; }
+    .history-panel.show { display: block; }
+
+    @media (max-width: 1180px) {
+      .side-nav { display: none; }
+      .wrap { width: min(100% - 20px, 1220px); margin: 0 auto; padding-top: 20px; }
+    }
+    @media (max-width: 820px) {
+      .hero, .card-head, .school-head { align-items: stretch; flex-direction: column; }
+      .filter-row { justify-content: flex-start; width: 100%; }
+      .badge { width: fit-content; }
+      button { width: fit-content; }
+      .sticky-toolbar { top: 0; border-radius: 0 0 18px 18px; margin-left: -10px; margin-right: -10px; }
+      .sticky-toolbar.collapsed { margin-left: auto; margin-right: 0; border-radius: 999px; }
+    }
+  </style>
+</head>
+<body>
+  <aside class="side-nav" id="sideNav">
+    <h3>学校导航</h3>
+    <div class="nav-count">暂无学校数据</div>
+  </aside>
+
+  <main class="wrap" id="top">
+    <section class="hero">
+      <div>
+        <h1>订单数据整理提取工具 <span class="version">V12</span></h1>
+        <p class="sub">粘贴、上传文本或 Excel 表格后，自动按学校分组展示；主体居中，左侧导航固定在画面中央。每个学校单独日报，支持学校模块图片导出、订单号悬浮搜索和批量操作。</p>
+      </div>
+      <div class="badge">Excel识别 · 学校日报 · 图片导出 · 可收起悬浮栏</div>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <h2>1. 导入订单数据</h2>
+        <p class="hint">新导入数据会追加保存；同一订单编号不会重复添加。数据只保存在当前浏览器本地。</p>
+      </div>
+      <div class="body">
+        <div class="upload-row">
+          <input id="fileInput" type="file" accept=".txt,.csv,.log,.text,.xls,.xlsx,.xlsm,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
+          <span class="hint">可上传 txt/csv 文本文件，也可上传 xls/xlsx Excel 表格；Excel 支持表头列识别或单元格内“字段：内容”识别。</span>
+        </div>
+        <textarea id="rawInput" placeholder="请粘贴订单数据，例如：
+订单编号：2064545581636329473
+学校名称：安阳市示范区飞翔中学
+纸张尺寸：A4
+预计纸张数：820
+年级：高一年级
+学科：语文
+订单备注：加急"></textarea>
+        <div class="btn-row">
+          <button class="primary" id="parseBtn">整理并保存</button>
+          <button class="secondary" id="sampleBtn">填入示例数据</button>
+          <button class="secondary" id="clearInputBtn">清空输入框</button>
+          <button class="danger" id="clearActiveBtn">清空当前订单</button>
+        </div>
+        <div class="stats" id="stats" style="display:none;"></div>
+        <p class="small-note">说明：更换电脑、换浏览器或清理浏览器数据后，本地保存内容可能消失；删除后的订单会进入“删除历史”。</p>
+      </div>
+    </section>
+
+    <section class="sticky-toolbar" id="floatingToolbar">
+      <p class="sticky-title"><span id="toolbarTitleText">悬浮搜索与统一操作</span><span class="toolbar-title-right"><span class="hint toolbar-help">滚动页面时会固定在顶部；学校模块中不再放批量操作按钮。</span><button class="secondary mini" id="toggleToolbarBtn" type="button">收起搜索栏</button></span></p>
+      <div class="sticky-grid">
+        <div class="toolbar-row">
+          <strong style="font-size:13px;color:#374151;">订单号：</strong>
+          <input id="orderSearchInput" type="search" placeholder="完整订单号、后四位或后六位；多个用空格/逗号分开" />
+          <button class="primary" id="selectByOrderBtn">搜索并全选</button>
+          <button class="secondary" id="clearOrderSearchBtn">清除搜索</button>
+        </div>
+        <div class="filter-row">
+          <label class="hint" for="dailyDateInput" style="font-weight:850;color:#374151;">日报日期</label>
+          <input id="dailyDateInput" type="date" />
+          <select id="statusFilter" title="状态筛选">
+            <option value="all">全部状态</option>
+            <option value="undelivered">仅未送达</option>
+            <option value="delivered">仅已送达</option>
+            <option value="urgent">仅加急</option>
+          </select>
+          <input id="searchInput" type="search" placeholder="筛选学校、年级、科目、订单号..." />
+        </div>
+      </div>
+      <div class="top-actions">
+        <button class="secondary" id="selectAllBtn">全选当前显示</button>
+        <button class="secondary" id="invertBtn">反选当前显示</button>
+        <button class="deliver-action" id="markDeliveredBtn">批量设为已送达</button>
+        <button class="secondary" id="markUndeliveredBtn">批量设为未送达</button>
+        <button class="danger" id="deleteSelectedBtn">批量删除选中</button>
+        <button class="success" id="exportSelectedBtn">导出选中 Excel</button>
+        <button class="primary" id="exportAllBtn">导出全部 Excel</button>
+      </div>
+      <details class="columns" id="columnChooserDetails">
+        <summary>导出列设置</summary>
+        <div class="column-list" id="columnChooser"></div>
+      </details>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <h2>2. 学校分类数据列表</h2>
+        <p class="hint">每个学校单独展示日报和订单。加急红色突出，已送达绿色突出。</p>
+      </div>
+      <div class="body" id="schoolGroupWrap">
+        <div class="empty">还没有数据。请先粘贴订单内容，然后点击“整理并保存”。</div>
+      </div>
+    </section>
+
+    <section class="card" id="deletedHistory">
+      <div class="card-head">
+        <h2>删除历史</h2>
+        <p class="hint" id="historyHint">已删除订单会保留在这里，可恢复或导出。</p>
+      </div>
+      <div class="body">
+        <div class="btn-row" style="margin-top:0;">
+          <button class="secondary" id="toggleHistoryBtn">展开删除历史</button>
+          <button class="success" id="restoreSelectedBtn">恢复选中历史</button>
+          <button class="secondary" id="exportDeletedBtn">导出删除历史 Excel</button>
+          <button class="danger" id="clearDeletedBtn">清空删除历史</button>
+        </div>
+        <div class="history-panel" id="historyPanel">
+          <div class="table-wrap" id="deletedWrap" style="margin-top:14px;"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script>
+    const STORAGE_ACTIVE = 'ssx_order_active_v5';
+    const STORAGE_DELETED = 'ssx_order_deleted_v5';
+
+    const rawInput = document.getElementById('rawInput');
+    const fileInput = document.getElementById('fileInput');
+    const parseBtn = document.getElementById('parseBtn');
+    const sampleBtn = document.getElementById('sampleBtn');
+    const clearInputBtn = document.getElementById('clearInputBtn');
+    const clearActiveBtn = document.getElementById('clearActiveBtn');
+    const schoolGroupWrap = document.getElementById('schoolGroupWrap');
+    const selectAllBtn = document.getElementById('selectAllBtn');
+    const invertBtn = document.getElementById('invertBtn');
+    const markDeliveredBtn = document.getElementById('markDeliveredBtn');
+    const markUndeliveredBtn = document.getElementById('markUndeliveredBtn');
+    const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
+    const exportSelectedBtn = document.getElementById('exportSelectedBtn');
+    const exportAllBtn = document.getElementById('exportAllBtn');
+    const searchInput = document.getElementById('searchInput');
+    const orderSearchInput = document.getElementById('orderSearchInput');
+    const selectByOrderBtn = document.getElementById('selectByOrderBtn');
+    const clearOrderSearchBtn = document.getElementById('clearOrderSearchBtn');
+    const statusFilter = document.getElementById('statusFilter');
+    const stats = document.getElementById('stats');
+    const toast = document.getElementById('toast');
+    const columnChooser = document.getElementById('columnChooser');
+    const toggleHistoryBtn = document.getElementById('toggleHistoryBtn');
+    const historyPanel = document.getElementById('historyPanel');
+    const deletedWrap = document.getElementById('deletedWrap');
+    const historyHint = document.getElementById('historyHint');
+    const restoreSelectedBtn = document.getElementById('restoreSelectedBtn');
+    const exportDeletedBtn = document.getElementById('exportDeletedBtn');
+    const clearDeletedBtn = document.getElementById('clearDeletedBtn');
+    const dailyDateInput = document.getElementById('dailyDateInput');
+    const sideNav = document.getElementById('sideNav');
+    const floatingToolbar = document.getElementById('floatingToolbar');
+    const toggleToolbarBtn = document.getElementById('toggleToolbarBtn');
+    const toolbarTitleText = document.getElementById('toolbarTitleText');
+    const TOOLBAR_COLLAPSED = 'ssx_toolbar_collapsed_v1';
+
+    let rows = [];
+    let deletedRows = [];
+    let selected = new Set();
+    let deletedSelected = new Set();
+
+    const exportColumns = [
+      { key: 'code', label: '订单编号后缀', checked: true },
+      { key: 'school', label: '学校名称', checked: true },
+      { key: 'grade', label: '年级', checked: true },
+      { key: 'subject', label: '科目', checked: true },
+      { key: 'paperSize', label: '纸张尺寸', checked: true },
+      { key: 'paperCount', label: '预计纸张数', checked: true },
+      { key: 'urgentStatus', label: '加急状态', checked: true },
+      { key: 'deliveryStatus', label: '送达状态', checked: true },
+      { key: 'remark', label: '订单备注', checked: false },
+      { key: 'orderId', label: '完整订单编号', checked: false }
+    ];
+
+    const sampleText = `订单编号：2064545581636329473
+学校名称：安阳市示范区飞翔中学
+文件交付时间：2026-06-10 15:09:39
+是否装订：不装订
+打孔要求：3孔
+纸张尺寸：A4
+纸张类型：黄色道林纸
+纸张克重：80g
+纸张颜色：黑白
+预计纸张数：820
+年级：高一年级
+学科：语文
+订单备注：无
+学校地址：收件人:申丰豪;手机号:17637248467;河南省安阳市安阳县安阳示范区飞翔中学 安阳示范区飞翔中学(西门)
+
+订单编号：2064545581636399473
+学校名称：安阳市示范区飞翔中学
+文件交付时间：2026-06-10 15:20:11
+是否装订：不装订
+打孔要求：3孔
+纸张尺寸：A3
+纸张类型：黄色道林纸
+预计纸张数：560
+年级：高二年级
+学科：数学
+订单备注：加急，今天优先处理
+
+订单编号：2064545581637778123
+学校名称：安阳市第一高级中学
+纸张尺寸：B4
+预计纸张数：430
+年级：高三年级
+科目：英语
+订单备注：无`;
+
+    const knownKeys = [
+      '订单编号','订单号','订单ID','订单id','学校名称','学校','校名','文件交付时间','是否装订','打孔要求',
+      '纸张尺寸','纸张大小','尺寸','纸张类型','纸张克重','纸张颜色','预计纸张数','纸张数','预计张数','张数',
+      '年级','学科','科目','课程','订单备注','备注','订单说明','学校地址'
+    ];
+
+    function setToolbarCollapsed(collapsed) {
+      floatingToolbar.classList.toggle('collapsed', collapsed);
+      toggleToolbarBtn.textContent = collapsed ? '展开搜索栏' : '收起搜索栏';
+      toolbarTitleText.textContent = collapsed ? '搜索栏已收起' : '悬浮搜索与统一操作';
+      try { localStorage.setItem(TOOLBAR_COLLAPSED, collapsed ? '1' : '0'); } catch (e) {}
+    }
+
+    function nowText() {
+      const d = new Date();
+      const pad = n => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+    }
+
+    function todayText() {
+      const d = new Date();
+      const pad = n => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+    }
+
+    function selectedReportDate() {
+      return String(dailyDateInput.value || '').trim() || todayText();
+    }
+
+    function dateOnly(value) {
+      const s = String(value || '').trim();
+      const m = s.match(/\d{4}-\d{2}-\d{2}/);
+      return m ? m[0] : '';
+    }
+
+    function dateLabel(date) {
+      return date === todayText() ? '今日' : date;
+    }
+
+    function showToast(message) {
+      toast.textContent = message;
+      toast.classList.add('show');
+      clearTimeout(showToast.timer);
+      showToast.timer = setTimeout(() => toast.classList.remove('show'), 3200);
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? '').replace(/[&<>"']/g, ch => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      }[ch]));
+    }
+
+    function escapeRegExp(value) {
+      return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
+    function safeJsonParse(value, fallback) {
+      try { return JSON.parse(value) || fallback; } catch (e) { return fallback; }
+    }
+
+    function makeId() {
+      return 'o_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 9);
+    }
+
+    function normalizeText(text) {
+      let s = String(text || '')
+        .replace(/^\uFEFF/, '')
+        .replace(/\r\n?/g, '\n')
+        .replace(/[\u00A0\u3000]/g, ' ')
+        .replace(/[“”]/g, '')
+        .trim();
+      const keyPattern = knownKeys.map(escapeRegExp).join('|');
+      s = s.replace(new RegExp(`\\s*(${keyPattern})\\s*[:：]`, 'g'), '\n$1：');
+      return s.replace(/^\n+/, '').trim();
+    }
+
+    function splitOrders(text) {
+      const s = normalizeText(text);
+      if (!s) return [];
+      const blocks = s.split(/\n(?=订单(?:编号|号|ID|id)\s*[:：])/g).map(x => x.trim()).filter(Boolean);
+      return blocks.length ? blocks : [s];
+    }
+
+    function lineMap(block) {
+      const map = new Map();
+      const lines = String(block || '').split('\n').map(x => x.trim()).filter(Boolean);
+      for (let line of lines) {
+        line = line.replace(/^["'“”]+|["'“”]+$/g, '').trim();
+        const m = line.match(/^([^:：]{1,40})\s*[:：]\s*(.*)$/);
+        if (!m) continue;
+        const key = m[1].trim();
+        const value = m[2].trim().replace(/["'“”]+$/g, '').trim();
+        if (!map.has(key)) map.set(key, value);
+      }
+      return map;
+    }
+
+    function getField(map, names) {
+      for (const name of names) if (map.has(name)) return map.get(name);
+      return '';
+    }
+
+    function cleanOrderId(value) {
+      const digits = String(value || '').match(/\d{4,}/);
+      return digits ? digits[0] : String(value || '').trim();
+    }
+
+    function cleanPaperCount(value) {
+      const v = String(value || '').trim();
+      const m = v.match(/\d+(?:\.\d+)?/);
+      return m ? m[0] : v;
+    }
+
+    function makeKey(row) {
+      if (row.orderId) return 'order:' + row.orderId;
+      return 'finger:' + [row.school, row.grade, row.subject, row.paperSize, row.paperCount, row.remark].join('|').trim();
+    }
+
+    function buildRowsFromText(text) {
+      const blocks = splitOrders(text);
+      const parsed = blocks.map(block => {
+        const map = lineMap(block);
+        const orderId = cleanOrderId(getField(map, ['订单编号', '订单号', '订单ID', '订单id']));
+        const remark = getField(map, ['订单备注', '备注', '订单说明']);
+        const urgent = /加急|急件|紧急|急单/.test(remark);
+        return {
+          id: makeId(),
+          orderId,
+          school: getField(map, ['学校名称', '学校', '校名']),
+          grade: getField(map, ['年级']),
+          subject: getField(map, ['学科', '科目', '课程']),
+          paperSize: getField(map, ['纸张尺寸', '纸张大小', '尺寸']),
+          paperCount: cleanPaperCount(getField(map, ['预计纸张数', '纸张数', '预计张数', '张数'])),
+          remark,
+          isUrgent: urgent,
+          urgentStatus: urgent ? '加急' : '普通',
+          delivered: false,
+          shipped: false,
+          deliveryStatus: '未送达',
+          shipStatus: '未送达',
+          deliveredAt: '',
+          shippedAt: '',
+          block,
+          code: '',
+          rule: '',
+          warning: '',
+          createdAt: nowText(),
+          updatedAt: nowText()
+        };
+      }).filter(item => item.orderId || item.school || item.grade || item.subject || item.paperSize || item.paperCount || item.remark);
+      recalcCodes(parsed);
+      return parsed;
+    }
+
+    function recalcCodes(list) {
+      const last4Count = new Map();
+      list.forEach(item => {
+        const last4 = item.orderId ? item.orderId.slice(-4) : '';
+        if (last4) last4Count.set(last4, (last4Count.get(last4) || 0) + 1);
+      });
+      const last6Count = new Map();
+      list.forEach(item => {
+        const last4 = item.orderId ? item.orderId.slice(-4) : '';
+        if (last4 && last4Count.get(last4) > 1) {
+          const last6 = item.orderId.slice(-6) || item.orderId;
+          last6Count.set(last6, (last6Count.get(last6) || 0) + 1);
+        }
+      });
+      list.forEach(item => {
+        item.delivered = Boolean(item.delivered || item.shipped);
+        item.shipped = item.delivered;
+        item.deliveryStatus = item.delivered ? '已送达' : '未送达';
+        item.shipStatus = item.deliveryStatus;
+        item.urgentStatus = item.isUrgent ? '加急' : '普通';
+        item.createdAt = item.createdAt || nowText();
+        item.updatedAt = item.updatedAt || item.createdAt;
+        if (!item.orderId) {
+          item.code = '';
+          item.rule = '缺少订单编号';
+          item.warning = '缺少订单编号';
+          return;
+        }
+        const last4 = item.orderId.slice(-4);
+        if (last4Count.get(last4) > 1) {
+          const last6 = item.orderId.slice(-6) || item.orderId;
+          item.code = last6;
+          item.rule = '后四重复，显示后六';
+          item.warning = last6Count.get(last6) > 1 ? '后六仍重复，请核对完整订单号' : '';
+        } else {
+          item.code = last4;
+          item.rule = '显示后四';
+          item.warning = '';
+        }
+      });
+    }
+
+    function normalizeStoredRow(row) {
+      row.id = row.id || makeId();
+      row.isUrgent = Boolean(row.isUrgent || /加急|急件|紧急|急单/.test(row.remark || ''));
+      row.delivered = Boolean(row.delivered || row.shipped);
+      row.shipped = row.delivered;
+      row.deliveryStatus = row.delivered ? '已送达' : '未送达';
+      row.shipStatus = row.deliveryStatus;
+      row.urgentStatus = row.isUrgent ? '加急' : '普通';
+      row.createdAt = row.createdAt || row.updatedAt || nowText();
+      row.updatedAt = row.updatedAt || row.createdAt;
+    }
+
+    function saveAll() {
+      try {
+        localStorage.setItem(STORAGE_ACTIVE, JSON.stringify(rows));
+        localStorage.setItem(STORAGE_DELETED, JSON.stringify(deletedRows));
+      } catch (e) {
+        showToast('保存失败：浏览器本地存储空间可能已满。');
+      }
+    }
+
+    function loadAll() {
+      rows = safeJsonParse(localStorage.getItem(STORAGE_ACTIVE), []);
+      deletedRows = safeJsonParse(localStorage.getItem(STORAGE_DELETED), []);
+      rows.forEach(normalizeStoredRow);
+      deletedRows.forEach(normalizeStoredRow);
+      recalcCodes(rows);
+      recalcCodes(deletedRows);
+    }
+
+    function mergeNewRows(newRows) {
+      const activeKeys = new Map(rows.map(r => [makeKey(r), r]));
+      const deletedKeys = new Set(deletedRows.map(makeKey));
+      let added = 0, updated = 0, skippedDeleted = 0;
+      for (const row of newRows) {
+        const key = makeKey(row);
+        if (deletedKeys.has(key)) { skippedDeleted++; continue; }
+        if (activeKeys.has(key)) {
+          const old = activeKeys.get(key);
+          const keep = {
+            id: old.id,
+            delivered: old.delivered,
+            shipped: old.delivered,
+            deliveryStatus: old.delivered ? '已送达' : '未送达',
+            shipStatus: old.delivered ? '已送达' : '未送达',
+            deliveredAt: old.deliveredAt || old.shippedAt || '',
+            shippedAt: old.deliveredAt || old.shippedAt || '',
+            createdAt: old.createdAt
+          };
+          Object.assign(old, row, keep, { updatedAt: nowText() });
+          updated++;
+        } else {
+          rows.push(row);
+          activeKeys.set(key, row);
+          selected.add(row.id);
+          added++;
+        }
+      }
+      recalcCodes(rows);
+      saveAll();
+      renderAll();
+      return { added, updated, skippedDeleted };
+    }
+
+    function getChosenColumns() {
+      return exportColumns.filter(c => c.checked);
+    }
+
+    function renderColumnChooser() {
+      columnChooser.innerHTML = exportColumns.map((c, i) => `
+        <label><input type="checkbox" data-col-index="${i}" ${c.checked ? 'checked' : ''}>${escapeHtml(c.label)}</label>
+      `).join('');
+      columnChooser.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+        cb.addEventListener('change', () => { exportColumns[Number(cb.dataset.colIndex)].checked = cb.checked; });
+      });
+    }
+
+    function splitSearchTokens(value) {
+      return String(value || '').trim().toLowerCase().split(/[\s,，;；]+/).map(x => x.trim()).filter(Boolean);
+    }
+
+    function rowMatchesTokens(row, tokens, orderOnly = false) {
+      if (!tokens.length) return true;
+      const fields = orderOnly
+        ? [row.orderId, row.code, row.orderId ? row.orderId.slice(-4) : '', row.orderId ? row.orderId.slice(-6) : '']
+        : [row.code, row.orderId, row.school, row.grade, row.subject, row.paperSize, row.paperCount, row.rule, row.remark, row.deliveryStatus, row.urgentStatus];
+      const values = fields.map(v => String(v || '').toLowerCase());
+      return tokens.some(t => values.some(v => v.includes(t)));
+    }
+
+    function sortRank(row) {
+      if (row.isUrgent) return 0;
+      if (!row.delivered) return 1;
+      return 2;
+    }
+
+    function compareDisplayRows(a, b) {
+      const rankDiff = sortRank(a) - sortRank(b);
+      if (rankDiff) return rankDiff;
+      const schoolDiff = String(a.school || '').localeCompare(String(b.school || ''), 'zh-CN');
+      if (schoolDiff) return schoolDiff;
+      const gradeDiff = String(a.grade || '').localeCompare(String(b.grade || ''), 'zh-CN');
+      if (gradeDiff) return gradeDiff;
+      return String(a.code || a.orderId || '').localeCompare(String(b.code || b.orderId || ''), 'zh-CN', { numeric: true });
+    }
+
+    function getFilteredRows() {
+      const tokens = splitSearchTokens(searchInput.value);
+      const status = statusFilter.value;
+      return rows.filter(r => {
+        if (status === 'undelivered' && r.delivered) return false;
+        if (status === 'delivered' && !r.delivered) return false;
+        if (status === 'urgent' && !r.isUrgent) return false;
+        return rowMatchesTokens(r, tokens, false);
+      }).sort(compareDisplayRows);
+    }
+
+    function groupBySchool(list) {
+      const groups = new Map();
+      list.forEach(row => {
+        const name = String(row.school || '').trim() || '未识别学校';
+        if (!groups.has(name)) groups.set(name, []);
+        groups.get(name).push(row);
+      });
+      groups.forEach(groupRows => groupRows.sort(compareDisplayRows));
+      return Array.from(groups.entries()).sort((a, b) => {
+        const aRank = Math.min(...a[1].map(sortRank));
+        const bRank = Math.min(...b[1].map(sortRank));
+        if (aRank !== bRank) return aRank - bRank;
+        return a[0].localeCompare(b[0], 'zh-CN');
+      });
+    }
+
+    function schoolSlug(school, index) {
+      let hash = 0;
+      for (let i = 0; i < school.length; i++) hash = ((hash << 5) - hash + school.charCodeAt(i)) | 0;
+      return 'school_' + index + '_' + Math.abs(hash);
+    }
+
+    function getReportRowsForSchool(school, date) {
+      const combined = [...rows, ...deletedRows];
+      const seen = new Set();
+      return combined.filter(r => {
+        const name = String(r.school || '').trim() || '未识别学校';
+        if (name !== school) return false;
+        if (dateOnly(r.createdAt || r.updatedAt || '') !== date) return false;
+        const key = makeKey(r);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      }).sort(compareDisplayRows);
+    }
+
+    function buildSchoolReportText(school, date) {
+      const reportRows = getReportRowsForSchool(school, date);
+      const deliveredRows = reportRows.filter(r => r.delivered);
+      const urgentRows = reportRows.filter(r => r.isUrgent);
+      const urgentCodes = urgentRows.map(r => r.code || r.orderId || '未识别').filter(Boolean);
+      const timeWord = date === todayText() ? '今日' : `${date} `;
+      if (reportRows.length > 0 && deliveredRows.length === reportRows.length) {
+        return `${school}${timeWord}订单已全部送达。`;
+      }
+      if (urgentRows.length > 0) {
+        return `${school}${timeWord}接单${reportRows.length}单，已经派送${deliveredRows.length}单，加急订单${urgentRows.length}单，单号分别是${urgentCodes.join('、')}。`;
+      }
+      return `${school}${timeWord}接单${reportRows.length}单，已经派送${deliveredRows.length}单，加急订单0单。`;
+    }
+
+    function updateStats() {
+      if (!rows.length) { stats.style.display = 'none'; return; }
+      const activeCount = rows.length;
+      const selectedCount = rows.filter(r => selected.has(r.id)).length;
+      const schoolCount = groupBySchool(rows).length;
+      const urgentCount = rows.filter(r => r.isUrgent).length;
+      const deliveredCount = rows.filter(r => r.delivered).length;
+      const totalPaper = rows.reduce((sum, r) => sum + (Number(r.paperCount) || 0), 0);
+      stats.style.display = 'flex';
+      stats.innerHTML = `
+        <div class="stat">当前订单：${activeCount} 条</div>
+        <div class="stat">已选中：${selectedCount} 条</div>
+        <div class="stat">学校：${schoolCount} 个</div>
+        <div class="stat urgent">加急：${urgentCount} 条</div>
+        <div class="stat delivered">已送达：${deliveredCount} 条</div>
+        <div class="stat">未送达：${activeCount - deliveredCount} 条</div>
+        <div class="stat">预计纸张总数：${totalPaper}</div>
+        <div class="stat">删除历史：${deletedRows.length} 条</div>
+      `;
+    }
+
+    function renderNav(groups) {
+      if (!groups || !groups.length) {
+        sideNav.innerHTML = '<h3>学校导航</h3><div class="nav-count">暂无学校数据</div>';
+        return;
+      }
+      sideNav.innerHTML = `
+        <h3>学校导航</h3>
+        <div class="nav-count">当前显示 ${groups.length} 个学校</div>
+        <button class="nav-link" data-target="top">回到顶部</button>
+        ${groups.map(([school, groupRows], i) => {
+          const urgent = groupRows.some(r => r.isUrgent);
+          const allDelivered = groupRows.every(r => r.delivered);
+          const cls = urgent ? 'urgent' : (allDelivered ? 'delivered' : '');
+          return `<button class="nav-link ${cls}" data-target="${schoolSlug(school, i)}">${escapeHtml(school)}<br><small>${groupRows.length}单 · 加急${groupRows.filter(r => r.isUrgent).length}</small></button>`;
+        }).join('')}
+        <button class="nav-link" data-target="deletedHistory">删除历史</button>
+      `;
+      sideNav.querySelectorAll('[data-target]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const target = document.getElementById(btn.dataset.target);
+          if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+      });
+    }
+
+    function renderGroups() {
+      updateStats();
+      const filtered = getFilteredRows();
+      if (!rows.length) {
+        schoolGroupWrap.innerHTML = '<div class="empty">还没有数据。请先粘贴订单内容，然后点击“整理并保存”。</div>';
+        renderNav([]);
+        return;
+      }
+      if (!filtered.length) {
+        schoolGroupWrap.innerHTML = '<div class="empty">没有匹配的搜索结果。</div>';
+        renderNav([]);
+        return;
+      }
+      const groups = groupBySchool(filtered);
+      renderNav(groups);
+      const date = selectedReportDate();
+      schoolGroupWrap.innerHTML = `<div class="school-groups">
+        ${groups.map(([school, groupRows], index) => {
+          const urgentCount = groupRows.filter(r => r.isUrgent).length;
+          const deliveredCount = groupRows.filter(r => r.delivered).length;
+          const selectedCount = groupRows.filter(r => selected.has(r.id)).length;
+          const totalPaper = groupRows.reduce((sum, r) => sum + (Number(r.paperCount) || 0), 0);
+          const reportRows = getReportRowsForSchool(school, date);
+          const reportDelivered = reportRows.filter(r => r.delivered).length;
+          const reportUrgent = reportRows.filter(r => r.isUrgent);
+          const reportText = buildSchoolReportText(school, date);
+          const id = schoolSlug(school, index);
+          return `
+            <div class="school-card" id="${id}" data-school="${escapeHtml(school)}">
+              <div class="school-head">
+                <div>
+                  <div class="school-title">
+                    <span class="name">${escapeHtml(school)}</span>
+                    ${urgentCount ? '<span class="urgent-badge">有加急</span>' : '<span class="normal-badge">无加急</span>'}
+                    ${deliveredCount === groupRows.length ? '<span class="delivered-badge">全部已送达</span>' : '<span class="undelivered-badge">有未送达</span>'}
+                  </div>
+                  <div class="school-meta">
+                    <span>当前显示：${groupRows.length} 条</span>
+                    <span>已选：${selectedCount} 条</span>
+                    <span>加急：${urgentCount} 条</span>
+                    <span>已送达：${deliveredCount} 条</span>
+                    <span>预计纸张：${totalPaper}</span>
+                  </div>
+                </div>
+                <div class="school-actions">
+                  <button class="secondary mini export-school-image" data-school="${escapeHtml(school)}">导出该校图片</button>
+                  <button class="secondary mini export-school-report" data-type="word" data-school="${escapeHtml(school)}">日报Word</button>
+                  <button class="secondary mini export-school-report" data-type="txt" data-school="${escapeHtml(school)}">日报TXT</button>
+                </div>
+              </div>
+              <div class="school-report">
+                <p class="report-sentence">${escapeHtml(reportText).replace(/加急订单(\d+)单/, '<span class="urgent-text">加急订单$1单</span>')}</p>
+                <div class="report-chips">
+                  <span class="report-chip">${escapeHtml(dateLabel(date))}接单 ${reportRows.length}</span>
+                  <span class="report-chip delivered">已经派送 ${reportDelivered}</span>
+                  <span class="report-chip urgent">加急 ${reportUrgent.length}</span>
+                  ${reportUrgent.length ? reportUrgent.map(r => `<span class="report-chip urgent">${escapeHtml(r.code || r.orderId || '未识别')}</span>`).join('') : ''}
+                </div>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th style="width:54px;">选择</th>
+                      <th style="width:86px;">送达</th>
+                      <th style="width:70px;">序号</th>
+                      <th>订单编号后缀</th>
+                      <th>年级</th>
+                      <th>科目</th>
+                      <th>纸张尺寸</th>
+                      <th>预计纸张数</th>
+                      <th>加急</th>
+                      <th>订单备注</th>
+                      <th>识别规则</th>
+                      <th>完整订单编号</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${groupRows.map((r, i) => `
+                      <tr class="${r.isUrgent ? 'urgent-row' : ''} ${r.delivered ? 'delivered-row' : ''}">
+                        <td><input type="checkbox" class="row-check" data-id="${r.id}" ${selected.has(r.id) ? 'checked' : ''}></td>
+                        <td><button class="deliver-toggle ${r.delivered ? 'delivered-btn' : 'undelivered-btn'}" data-id="${r.id}">${r.delivered ? '已送达' : '未送达'}</button></td>
+                        <td>${i + 1}</td>
+                        <td><span class="code">${escapeHtml(r.code || '—')}</span></td>
+                        <td>${escapeHtml(r.grade || '—')}</td>
+                        <td>${escapeHtml(r.subject || '—')}</td>
+                        <td>${escapeHtml(r.paperSize || '—')}</td>
+                        <td>${escapeHtml(r.paperCount || '—')}</td>
+                        <td>${r.isUrgent ? '<span class="urgent-badge">加急</span>' : '<span class="normal-badge">普通</span>'}</td>
+                        <td title="${escapeHtml(r.remark || '')}">${escapeHtml(r.remark || '—')}</td>
+                        <td><span class="tag ${r.warning ? 'danger' : (r.rule.includes('重复') ? 'warn' : '')}">${escapeHtml(r.warning || r.rule || '—')}</span></td>
+                        <td>${escapeHtml(r.orderId || '—')}</td>
+                      </tr>
+                    `).join('')}
+                  </tbody>
+                </table>
+              </div>
+            </div>`;
+        }).join('')}
+      </div>`;
+
+      schoolGroupWrap.querySelectorAll('.row-check').forEach(cb => {
+        cb.addEventListener('change', () => {
+          if (cb.checked) selected.add(cb.dataset.id); else selected.delete(cb.dataset.id);
+          updateStats();
+        });
+      });
+      schoolGroupWrap.querySelectorAll('.deliver-toggle').forEach(btn => btn.addEventListener('click', () => toggleDelivered([btn.dataset.id])));
+      schoolGroupWrap.querySelectorAll('.export-school-report').forEach(btn => {
+        btn.addEventListener('click', () => exportSchoolReport(btn.dataset.school, btn.dataset.type));
+      });
+      schoolGroupWrap.querySelectorAll('.export-school-image').forEach(btn => {
+        btn.addEventListener('click', () => exportSchoolImage(btn.dataset.school));
+      });
+    }
+
+    function renderDeleted() {
+      historyHint.textContent = `已删除订单会保留在这里，可恢复或导出。当前删除历史：${deletedRows.length} 条。`;
+      if (!deletedRows.length) { deletedWrap.innerHTML = '<div class="empty">暂无删除历史。</div>'; return; }
+      deletedWrap.innerHTML = `
+        <table>
+          <thead>
+            <tr>
+              <th style="width:54px;">选择</th>
+              <th style="width:70px;">序号</th>
+              <th>删除时间</th>
+              <th>订单编号后缀</th>
+              <th>学校名称</th>
+              <th>年级</th>
+              <th>科目</th>
+              <th>纸张尺寸</th>
+              <th>预计纸张数</th>
+              <th>加急</th>
+              <th>送达状态</th>
+              <th>订单备注</th>
+              <th>完整订单编号</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${deletedRows.map((r, i) => `
+              <tr class="${r.isUrgent ? 'urgent-row' : ''} ${r.delivered ? 'delivered-row' : ''}">
+                <td><input type="checkbox" class="deleted-check" data-id="${r.id}" ${deletedSelected.has(r.id) ? 'checked' : ''}></td>
+                <td>${i + 1}</td>
+                <td>${escapeHtml(r.deletedAt || '—')}</td>
+                <td><span class="code">${escapeHtml(r.code || '—')}</span></td>
+                <td>${escapeHtml(r.school || '—')}</td>
+                <td>${escapeHtml(r.grade || '—')}</td>
+                <td>${escapeHtml(r.subject || '—')}</td>
+                <td>${escapeHtml(r.paperSize || '—')}</td>
+                <td>${escapeHtml(r.paperCount || '—')}</td>
+                <td>${r.isUrgent ? '<span class="urgent-badge">加急</span>' : '<span class="normal-badge">普通</span>'}</td>
+                <td>${r.delivered ? '<span class="delivered-badge">已送达</span>' : '<span class="undelivered-badge">未送达</span>'}</td>
+                <td>${escapeHtml(r.remark || '—')}</td>
+                <td>${escapeHtml(r.orderId || '—')}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>`;
+      deletedWrap.querySelectorAll('.deleted-check').forEach(cb => {
+        cb.addEventListener('change', () => {
+          if (cb.checked) deletedSelected.add(cb.dataset.id); else deletedSelected.delete(cb.dataset.id);
+        });
+      });
+    }
+
+    function renderAll() { renderGroups(); renderDeleted(); }
+
+    function isExcelFile(file) {
+      const name = String(file && file.name || '').toLowerCase();
+      const type = String(file && file.type || '').toLowerCase();
+      return /\.(xlsx|xls|xlsm)$/.test(name) || type.includes('spreadsheet') || type.includes('excel');
+    }
+
+    const excelFieldAliases = {
+      orderId: ['订单编号', '订单号', '订单ID', '订单id'],
+      school: ['学校名称', '学校', '校名'],
+      grade: ['年级'],
+      subject: ['学科', '科目', '课程'],
+      paperSize: ['纸张尺寸', '纸张大小', '尺寸'],
+      paperCount: ['预计纸张数', '纸张数', '预计张数', '张数'],
+      remark: ['订单备注', '备注', '订单说明']
+    };
+
+    function normalizeHeader(value) {
+      return String(value || '').replace(/[\s\n\r\t:：\-_/（）()【】\[\]"'“”]/g, '').trim();
+    }
+
+    function canonicalFieldFromHeader(value) {
+      const h = normalizeHeader(value);
+      if (!h) return '';
+      for (const [key, aliases] of Object.entries(excelFieldAliases)) {
+        const sorted = [...aliases].sort((a, b) => normalizeHeader(b).length - normalizeHeader(a).length);
+        for (const alias of sorted) {
+          const a = normalizeHeader(alias);
+          if (!a) continue;
+          if (h === a) return key;
+          if (a.length >= 3 && (h.startsWith(a) || h.includes(a))) return key;
+        }
+      }
+      return '';
+    }
+
+    function blockFromRowValues(v) {
+      return [
+        ['订单编号', v.orderId],
+        ['学校名称', v.school],
+        ['纸张尺寸', v.paperSize],
+        ['预计纸张数', v.paperCount],
+        ['年级', v.grade],
+        ['学科', v.subject],
+        ['订单备注', v.remark]
+      ].filter(pair => String(pair[1] || '').trim()).map(pair => `${pair[0]}：${pair[1]}`).join('\n');
+    }
+
+    function buildRowFromValueObject(v) {
+      const orderId = cleanOrderId(v.orderId || '');
+      const remark = String(v.remark || '').trim();
+      const urgent = /加急|急件|紧急|急单/.test(remark);
+      const block = blockFromRowValues({ ...v, orderId, remark });
+      const row = {
+        id: makeId(),
+        orderId,
+        school: String(v.school || '').trim(),
+        grade: String(v.grade || '').trim(),
+        subject: String(v.subject || '').trim(),
+        paperSize: String(v.paperSize || '').trim(),
+        paperCount: cleanPaperCount(v.paperCount || ''),
+        remark,
+        isUrgent: urgent,
+        urgentStatus: urgent ? '加急' : '普通',
+        delivered: false,
+        shipped: false,
+        deliveryStatus: '未送达',
+        shipStatus: '未送达',
+        deliveredAt: '',
+        shippedAt: '',
+        block,
+        code: '',
+        rule: '',
+        warning: '',
+        createdAt: nowText(),
+        updatedAt: nowText()
+      };
+      return (row.orderId || row.school || row.grade || row.subject || row.paperSize || row.paperCount || row.remark) ? row : null;
+    }
+
+    function rowsToReviewText(list) {
+      return list.map(r => r.block || blockFromRowValues(r)).filter(Boolean).join('\n\n');
+    }
+
+    function buildRowsFromExcelAoA(aoa) {
+      const cleanRows = (aoa || []).map(row => (row || []).map(cell => String(cell ?? '').trim())).filter(row => row.some(Boolean));
+      if (!cleanRows.length) return [];
+
+      let bestHeaderIndex = -1;
+      let bestFields = [];
+      cleanRows.forEach((row, index) => {
+        const fields = row.map(canonicalFieldFromHeader);
+        const unique = new Set(fields.filter(Boolean));
+        if (unique.size > bestFields.filter(Boolean).length) {
+          bestFields = fields;
+          bestHeaderIndex = index;
+        }
+      });
+
+      if (bestHeaderIndex >= 0 && new Set(bestFields.filter(Boolean)).size >= 2) {
+        const parsed = [];
+        const usedCols = bestFields.map((field, index) => ({ field, index })).filter(x => x.field);
+        cleanRows.slice(bestHeaderIndex + 1).forEach(row => {
+          const values = {};
+          usedCols.forEach(({ field, index }) => {
+            if (!values[field]) values[field] = row[index] || '';
+          });
+          const parsedRow = buildRowFromValueObject(values);
+          if (parsedRow) parsed.push(parsedRow);
+        });
+        if (parsed.length) {
+          recalcCodes(parsed);
+          return parsed;
+        }
+      }
+
+      const text = cleanRows.map(row => row.filter(Boolean).join('\n')).join('\n');
+      return buildRowsFromText(text);
+    }
+
+    function handleExcelFile(file) {
+      if (!window.XLSX) {
+        showToast('Excel 解析库没有加载成功。请检查网络，或先把 Excel 另存为 CSV/TXT 再上传。');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = e => {
+        try {
+          const workbook = XLSX.read(e.target.result, { type: 'array', cellDates: false });
+          let imported = [];
+          workbook.SheetNames.forEach(name => {
+            const sheet = workbook.Sheets[name];
+            const aoa = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', raw: false });
+            imported = imported.concat(buildRowsFromExcelAoA(aoa));
+          });
+          recalcCodes(imported);
+          rawInput.value = rowsToReviewText(imported);
+          if (!imported.length) {
+            showToast('Excel 已读取，但没有识别到有效订单。请确认表格中包含订单编号、学校名称、年级、学科等字段。');
+            return;
+          }
+          const result = mergeNewRows(imported);
+          showToast(`Excel 已识别并保存：新增 ${result.added} 条，更新 ${result.updated} 条。`);
+        } catch (err) {
+          console.error(err);
+          showToast('Excel 读取失败，请确认文件未损坏，或另存为 xlsx/csv 后重试。');
+        }
+      };
+      reader.onerror = () => showToast('Excel 文件读取失败，请重试。');
+      reader.readAsArrayBuffer(file);
+    }
+
+    function parseNow() {
+      const newRows = buildRowsFromText(rawInput.value);
+      if (!newRows.length) {
+        showToast('没有识别到有效数据，请检查是否包含“订单编号、学校名称、年级、学科/科目、纸张尺寸、预计纸张数”等字段。');
+        return;
+      }
+      const result = mergeNewRows(newRows);
+      showToast(`已新增 ${result.added} 条，更新 ${result.updated} 条；${result.skippedDeleted ? `有 ${result.skippedDeleted} 条在删除历史中，未自动恢复。` : ''}`);
+    }
+
+    function setDelivered(ids, delivered) {
+      const idSet = new Set(ids);
+      let count = 0;
+      rows.forEach(r => {
+        if (idSet.has(r.id)) {
+          r.delivered = delivered;
+          r.shipped = delivered;
+          r.deliveryStatus = delivered ? '已送达' : '未送达';
+          r.shipStatus = r.deliveryStatus;
+          r.deliveredAt = delivered ? nowText() : '';
+          r.shippedAt = r.deliveredAt;
+          r.updatedAt = nowText();
+          count++;
+        }
+      });
+      saveAll();
+      renderAll();
+      showToast(`已将 ${count} 条订单设为${delivered ? '已送达' : '未送达'}。`);
+    }
+
+    function toggleDelivered(ids) {
+      const first = rows.find(r => ids.includes(r.id));
+      setDelivered(ids, !(first && first.delivered));
+    }
+
+    function deleteRowsByIds(ids) {
+      const idSet = new Set(ids);
+      if (!idSet.size) { showToast('请先选择要删除的订单。'); return; }
+      const deleteList = rows.filter(r => idSet.has(r.id));
+      if (!deleteList.length) { showToast('没有找到可删除的订单。'); return; }
+      if (!confirm(`确定删除 ${deleteList.length} 条订单吗？删除后会保留在“删除历史”中。`)) return;
+      const time = nowText();
+      deleteList.forEach(r => {
+        const copy = { ...r, deletedAt: time };
+        deletedRows.unshift(copy);
+        selected.delete(r.id);
+      });
+      rows = rows.filter(r => !idSet.has(r.id));
+      recalcCodes(rows);
+      recalcCodes(deletedRows);
+      saveAll();
+      renderAll();
+      showToast(`已删除 ${deleteList.length} 条，已保留到删除历史。`);
+    }
+
+    function restoreDeletedSelected() {
+      const restoreList = deletedRows.filter(r => deletedSelected.has(r.id));
+      if (!restoreList.length) { showToast('请先在删除历史中勾选要恢复的数据。'); return; }
+      const activeKeys = new Set(rows.map(makeKey));
+      let restored = 0, skipped = 0;
+      restoreList.forEach(r => {
+        const key = makeKey(r);
+        if (activeKeys.has(key)) { skipped++; return; }
+        const copy = { ...r, restoredAt: nowText(), deletedAt: '' };
+        rows.push(copy);
+        activeKeys.add(key);
+        selected.add(copy.id);
+        restored++;
+      });
+      deletedRows = deletedRows.filter(r => !deletedSelected.has(r.id));
+      deletedSelected.clear();
+      recalcCodes(rows);
+      recalcCodes(deletedRows);
+      saveAll();
+      renderAll();
+      showToast(`已恢复 ${restored} 条${skipped ? `，跳过 ${skipped} 条已存在订单` : ''}。`);
+    }
+
+    function selectByOrderNumber() {
+      const tokens = splitSearchTokens(orderSearchInput.value);
+      if (!tokens.length) { showToast('请输入要搜索的订单号、后四位或后六位。'); return; }
+      const matches = rows.filter(r => rowMatchesTokens(r, tokens, true));
+      if (!matches.length) {
+        searchInput.value = orderSearchInput.value.trim();
+        renderGroups();
+        showToast('没有找到匹配的订单。');
+        return;
+      }
+      matches.forEach(r => selected.add(r.id));
+      searchInput.value = orderSearchInput.value.trim();
+      statusFilter.value = 'all';
+      renderGroups();
+      showToast(`已找到并选中 ${matches.length} 条匹配订单。`);
+    }
+
+    function downloadBlob(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    function safeFileName(name) {
+      return String(name || '导出').replace(/[\\/:*?"<>|]/g, '_');
+    }
+
+    function exportExcel(dataRows, baseName, includeDeletedAt = false) {
+      const chosenColumns = getChosenColumns();
+      if (!dataRows.length) { showToast('没有可导出的数据。'); return; }
+      if (!chosenColumns.length) { showToast('请至少勾选一个导出列。'); return; }
+      const columns = includeDeletedAt ? [{ key: 'deletedAt', label: '删除时间', checked: true }, ...chosenColumns] : chosenColumns;
+      const tableHtml = `
+        <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+        <head><meta charset="UTF-8"></head>
+        <body>
+          <table border="1">
+            <tr>${columns.map(c => `<th>${escapeHtml(c.label)}</th>`).join('')}</tr>
+            ${dataRows.map(row => {
+              const bg = row.isUrgent ? '#fef2f2' : (row.delivered ? '#ecfdf5' : '#ffffff');
+              const color = row.isUrgent ? '#991b1b' : (row.delivered ? '#065f46' : '#172033');
+              return `<tr>${columns.map(c => `<td style="mso-number-format:'\\@';background:${bg};color:${color};">${escapeHtml(row[c.key] || '')}</td>`).join('')}</tr>`;
+            }).join('')}
+          </table>
+        </body></html>`;
+      const d = new Date();
+      const pad = n => String(n).padStart(2, '0');
+      const filename = `${safeFileName(baseName)}_${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}.xls`;
+      downloadBlob(new Blob(['\ufeff', tableHtml], { type: 'application/vnd.ms-excel;charset=utf-8;' }), filename);
+      showToast(`已导出 ${dataRows.length} 条数据为 Excel。`);
+    }
+
+    function exportSchoolReport(school, type) {
+      const date = selectedReportDate();
+      const text = buildSchoolReportText(school, date);
+      const safeDate = date.replace(/-/g, '');
+      if (type === 'word') {
+        const html = `<!doctype html><html><head><meta charset="UTF-8"><title>${escapeHtml(school)}日报</title></head><body style="font-family:Microsoft YaHei,Arial,sans-serif;line-height:1.8;"><p style="font-size:16px;">${escapeHtml(text)}</p></body></html>`;
+        downloadBlob(new Blob(['\ufeff', html], { type: 'application/msword;charset=utf-8;' }), `${safeFileName(school)}_日报_${safeDate}.doc`);
+        showToast('已导出该学校日报 Word。');
+      } else {
+        downloadBlob(new Blob(['\ufeff', text], { type: 'text/plain;charset=utf-8;' }), `${safeFileName(school)}_日报_${safeDate}.txt`);
+        showToast('已导出该学校日报 TXT。');
+      }
+    }
+
+    function canvasText(ctx, text, x, y, maxWidth, lineHeight) {
+      const chars = String(text || '').split('');
+      let line = '';
+      let lines = [];
+      for (const ch of chars) {
+        const test = line + ch;
+        if (ctx.measureText(test).width > maxWidth && line) {
+          lines.push(line);
+          line = ch;
+        } else {
+          line = test;
+        }
+      }
+      if (line) lines.push(line);
+      lines.forEach((ln, i) => ctx.fillText(ln, x, y + i * lineHeight));
+      return lines.length * lineHeight;
+    }
+
+    function exportSchoolImage(school) {
+      const date = selectedReportDate();
+      const visibleRows = getFilteredRows().filter(r => (String(r.school || '').trim() || '未识别学校') === school);
+      if (!visibleRows.length) { showToast('该学校当前没有可导出的显示数据。'); return; }
+      const reportText = buildSchoolReportText(school, date);
+      const width = 1400;
+      const rowH = 38;
+      const height = Math.max(360, 230 + visibleRows.length * rowH);
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, width, height);
+
+      ctx.save();
+      ctx.translate(width / 2, height / 2);
+      ctx.rotate(-Math.PI / 8);
+      ctx.font = '700 64px Microsoft YaHei, Arial';
+      ctx.fillStyle = 'rgba(37,99,235,0.08)';
+      ctx.textAlign = 'center';
+      ctx.fillText('沙圣轩专用', 0, 0);
+      ctx.restore();
+
+      ctx.fillStyle = '#111827';
+      ctx.font = '900 30px Microsoft YaHei, Arial';
+      ctx.textAlign = 'left';
+      ctx.fillText(school, 34, 48);
+      ctx.font = '700 18px Microsoft YaHei, Arial';
+      ctx.fillStyle = '#374151';
+      canvasText(ctx, reportText, 34, 84, width - 68, 28);
+
+      const urgentCount = visibleRows.filter(r => r.isUrgent).length;
+      const deliveredCount = visibleRows.filter(r => r.delivered).length;
+      ctx.fillStyle = '#eff6ff'; ctx.fillRect(34, 128, 180, 42);
+      ctx.fillStyle = '#dc2626'; ctx.fillRect(230, 128, 180, 42);
+      ctx.fillStyle = '#059669'; ctx.fillRect(426, 128, 180, 42);
+      ctx.font = '800 18px Microsoft YaHei, Arial';
+      ctx.fillStyle = '#1e40af'; ctx.fillText(`当前显示 ${visibleRows.length} 单`, 52, 155);
+      ctx.fillStyle = '#ffffff'; ctx.fillText(`加急 ${urgentCount} 单`, 248, 155);
+      ctx.fillText(`已送达 ${deliveredCount} 单`, 444, 155);
+
+      const cols = [
+        ['序号', 34, 60], ['订单后缀', 94, 120], ['年级', 214, 120], ['科目', 334, 120],
+        ['尺寸', 454, 90], ['张数', 544, 90], ['送达', 634, 110], ['加急', 744, 100], ['备注', 844, 510]
+      ];
+      let y = 198;
+      ctx.fillStyle = '#f9fafb';
+      ctx.fillRect(34, y - 26, width - 68, 34);
+      ctx.strokeStyle = '#e5e7eb';
+      ctx.strokeRect(34, y - 26, width - 68, 34);
+      ctx.font = '800 15px Microsoft YaHei, Arial';
+      ctx.fillStyle = '#374151';
+      cols.forEach(c => ctx.fillText(c[0], c[1], y - 5));
+
+      visibleRows.forEach((r, i) => {
+        y += rowH;
+        ctx.fillStyle = r.isUrgent ? '#fff1f2' : (r.delivered ? '#ecfdf5' : '#ffffff');
+        ctx.fillRect(34, y - 28, width - 68, rowH);
+        ctx.strokeStyle = '#e5e7eb';
+        ctx.beginPath(); ctx.moveTo(34, y + 10); ctx.lineTo(width - 34, y + 10); ctx.stroke();
+        ctx.font = '700 15px Microsoft YaHei, Arial';
+        ctx.fillStyle = r.isUrgent ? '#9f1239' : (r.delivered ? '#065f46' : '#172033');
+        const vals = [i + 1, r.code || '—', r.grade || '—', r.subject || '—', r.paperSize || '—', r.paperCount || '—', r.delivered ? '已送达' : '未送达', r.isUrgent ? '加急' : '普通'];
+        vals.forEach((v, idx) => ctx.fillText(String(v), cols[idx][1], y - 4));
+        canvasText(ctx, r.remark || '—', cols[8][1], y - 4, cols[8][2], 18);
+      });
+
+      canvas.toBlob(blob => {
+        if (!blob) { showToast('图片生成失败，请换浏览器重试。'); return; }
+        downloadBlob(blob, `${safeFileName(school)}_订单模块_${date.replace(/-/g, '')}.png`);
+        showToast('已导出该学校模块图片。');
+      }, 'image/png');
+    }
+
+    fileInput.addEventListener('change', event => {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+      if (isExcelFile(file)) {
+        handleExcelFile(file);
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = e => { rawInput.value = e.target.result || ''; showToast('文件内容已读取，请点击“整理并保存”。'); };
+      reader.onerror = () => showToast('文件读取失败，请尝试复制内容后粘贴。');
+      reader.readAsText(file, 'UTF-8');
+    });
+
+    parseBtn.addEventListener('click', parseNow);
+    sampleBtn.addEventListener('click', () => { rawInput.value = sampleText; parseNow(); });
+    clearInputBtn.addEventListener('click', () => { rawInput.value = ''; fileInput.value = ''; showToast('已清空输入框，不影响已保存订单。'); });
+    clearActiveBtn.addEventListener('click', () => {
+      if (!rows.length) { showToast('当前没有订单可清空。'); return; }
+      if (!confirm(`确定清空当前 ${rows.length} 条订单吗？这些订单会全部进入删除历史。`)) return;
+      const time = nowText();
+      rows.forEach(r => deletedRows.unshift({ ...r, deletedAt: time }));
+      rows = [];
+      selected.clear();
+      recalcCodes(deletedRows);
+      saveAll();
+      renderAll();
+      showToast('当前订单已清空，并保留到删除历史。');
+    });
+
+    selectByOrderBtn.addEventListener('click', selectByOrderNumber);
+    orderSearchInput.addEventListener('keydown', e => { if (e.key === 'Enter') selectByOrderNumber(); });
+    clearOrderSearchBtn.addEventListener('click', () => {
+      orderSearchInput.value = '';
+      searchInput.value = '';
+      statusFilter.value = 'all';
+      renderGroups();
+      showToast('已清除订单号搜索。');
+    });
+
+    selectAllBtn.addEventListener('click', () => { getFilteredRows().forEach(r => selected.add(r.id)); renderGroups(); showToast('已选中当前显示的数据。'); });
+    invertBtn.addEventListener('click', () => { getFilteredRows().forEach(r => selected.has(r.id) ? selected.delete(r.id) : selected.add(r.id)); renderGroups(); showToast('已反选当前显示的数据。'); });
+    markDeliveredBtn.addEventListener('click', () => setDelivered(rows.filter(r => selected.has(r.id)).map(r => r.id), true));
+    markUndeliveredBtn.addEventListener('click', () => setDelivered(rows.filter(r => selected.has(r.id)).map(r => r.id), false));
+    deleteSelectedBtn.addEventListener('click', () => deleteRowsByIds(rows.filter(r => selected.has(r.id)).map(r => r.id)));
+    exportSelectedBtn.addEventListener('click', () => exportExcel(rows.filter(r => selected.has(r.id)), '订单整理_选中'));
+    exportAllBtn.addEventListener('click', () => exportExcel(rows, '订单整理_全部'));
+    searchInput.addEventListener('input', renderGroups);
+    statusFilter.addEventListener('change', renderGroups);
+    dailyDateInput.addEventListener('change', renderGroups);
+    toggleToolbarBtn.addEventListener('click', () => setToolbarCollapsed(!floatingToolbar.classList.contains('collapsed')));
+
+    toggleHistoryBtn.addEventListener('click', () => {
+      historyPanel.classList.toggle('show');
+      toggleHistoryBtn.textContent = historyPanel.classList.contains('show') ? '收起删除历史' : '展开删除历史';
+    });
+    restoreSelectedBtn.addEventListener('click', restoreDeletedSelected);
+    exportDeletedBtn.addEventListener('click', () => exportExcel(deletedRows, '订单整理_删除历史', true));
+    clearDeletedBtn.addEventListener('click', () => {
+      if (!deletedRows.length) { showToast('删除历史为空。'); return; }
+      if (!confirm(`确定永久清空 ${deletedRows.length} 条删除历史吗？清空后不能恢复。`)) return;
+      deletedRows = [];
+      deletedSelected.clear();
+      saveAll();
+      renderAll();
+      showToast('删除历史已清空。');
+    });
+
+    dailyDateInput.value = todayText();
+    setToolbarCollapsed(localStorage.getItem(TOOLBAR_COLLAPSED) === '1');
+    renderColumnChooser();
+    loadAll();
+    renderAll();
+  </script>
+</body>
+</html>
